@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ recommendation });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "알 수 없는 오류";
+    console.error("[recommend]", err);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

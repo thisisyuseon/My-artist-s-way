@@ -90,7 +90,8 @@ export default function App() {
   }, []);
 
   const today = todayStr();
-  const isSaturday = new Date().getDay() === 6;
+  const [isSaturday, setIsSaturday] = useState(false);
+  useEffect(() => { setIsSaturday(new Date().getDay() === 6); }, []);
   const stats: Stats = calcStats([...mpDates]);
   const { streak, week, weekCount, todayDone } = stats;
 
