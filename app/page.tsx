@@ -43,6 +43,12 @@ export default function App() {
   const [adMsg, setAdMsg] = useState("");
   const [adSaving, setAdSaving] = useState(false);
 
+  // AI 추천 state
+  const [aiMood, setAiMood]         = useState("");
+  const [aiLoading, setAiLoading]   = useState(false);
+  const [aiRec, setAiRec]           = useState<{ title: string; place: string; category: string; reason: string; tips: string } | null>(null);
+  const [aiErr, setAiErr]           = useState("");
+
   // 체크인 state
   const [ciWeek, setCiWeek]       = useState(5);
   const [ciForm, setCiForm]       = useState<CheckinForm>({ mpDays: 7, adDone: false, readingFast: false, feeling: "", discovery: "", nextWeek: "" });
@@ -84,6 +90,7 @@ export default function App() {
   }, []);
 
   const today = todayStr();
+  const isSaturday = new Date().getDay() === 6;
   const stats: Stats = calcStats([...mpDates]);
   const { streak, week, weekCount, todayDone } = stats;
 
@@ -100,6 +107,25 @@ export default function App() {
       setMpMsg("저장 실패, 다시 시도해주세요.");
     }
     setMpSaving(false);
+  }
+
+  // ── 핸들러: AI 아티스트 데이트 추천 ─────────────────────────────────
+  async function handleAiRecommend() {
+    if (!aiMood) return;
+    setAiLoading(true); setAiErr(""); setAiRec(null);
+    const w = WEEKS[currentWeek - 1];
+    const res = await fetch("/api/recommend", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mood: aiMood, week: currentWeek, theme: w.theme, intro: w.intro }),
+    });
+    const data = await res.json();
+    if (data.recommendation) {
+      setAiRec(data.recommendation);
+    } else {
+      setAiErr("추천을 가져오지 못했어요. 다시 시도해주세요.");
+    }
+    setAiLoading(false);
   }
 
   // ── 핸들러: 아티스트 데이트 저장 ────────────────────────────────────
@@ -200,6 +226,42 @@ export default function App() {
         <p style={{ margin: "0 0 4px", fontSize: 11, color: PD, letterSpacing: "0.1em", fontWeight: 500 }}>THE ARTIST'S WAY</p>
         <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 500 }}>Artist Date 기록</h2>
         <p style={{ margin: "0 0 20px", fontSize: 13, color: MUT }}>나 혼자 하는 창의적인 나들이를 기록해요</p>
+
+        {/* AI 추천 패널 */}
+        <div style={{ background: `linear-gradient(135deg,#FFF5F8,#F5FFF0)`, border: `1.5px solid ${PM}44`, borderRadius: 16, padding: "16px 18px", marginBottom: 20 }}>
+          <p style={{ margin: "0 0 4px", fontSize: 12, color: PD, fontWeight: 500, letterSpacing: "0.05em" }}>✨ AI 아티스트 데이트 추천</p>
+          <p style={{ margin: "0 0 14px", fontSize: 13, color: MUT }}>지금 기분을 선택하면 AI가 오늘 딱 맞는 나들이를 추천해줘요</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+            {MOODS.map((m) => (
+              <Tag key={m} label={m} active={aiMood === m} onClick={() => { setAiMood(m); setAiRec(null); setAiErr(""); }} />
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={handleAiRecommend}
+            disabled={!aiMood || aiLoading}
+            style={{ width: "100%", padding: "11px 0", borderRadius: 10, background: aiMood && !aiLoading ? `linear-gradient(135deg,${PM},${GM})` : "#e0d8e0", border: "none", color: aiMood && !aiLoading ? "#fff" : MUT, fontSize: 14, fontWeight: 500, cursor: aiMood && !aiLoading ? "pointer" : "not-allowed", transition: "background 0.3s" }}
+          >
+            {aiLoading ? "추천 생성 중..." : "🎨 AI 추천 받기"}
+          </button>
+          {aiErr && <p style={{ margin: "10px 0 0", fontSize: 13, color: "#E24B4A", textAlign: "center" }}>{aiErr}</p>}
+          {aiRec && (
+            <div style={{ marginTop: 14, background: "#fff", borderRadius: 12, padding: "14px 16px", border: `1px solid ${GM}44` }}>
+              <p style={{ margin: "0 0 2px", fontSize: 15, fontWeight: 500, color: GD }}>{aiRec.title}</p>
+              <p style={{ margin: "0 0 8px", fontSize: 13, color: MUT }}>{aiRec.category} · {aiRec.place}</p>
+              <p style={{ margin: "0 0 8px", fontSize: 13, color: "#333", lineHeight: 1.6 }}>{aiRec.reason}</p>
+              <p style={{ margin: "0 0 12px", fontSize: 12, color: MUT, lineHeight: 1.5 }}>💡 {aiRec.tips}</p>
+              <button
+                type="button"
+                onClick={() => setAd((p) => ({ ...p, title: aiRec.title, place: aiRec.place, category: aiRec.category }))}
+                style={{ width: "100%", padding: "9px 0", borderRadius: 9, background: `linear-gradient(135deg,${GB},${PB})`, border: "none", color: GD, fontSize: 13, fontWeight: 500, cursor: "pointer" }}
+              >
+                이 추천으로 기록 채우기 →
+              </button>
+            </div>
+          )}
+        </div>
+
         <Card bc={GB}>
           <Inp placeholder="제목 (예: 국립현대미술관 나들이)" value={ad.title} onChange={(v) => setAd((p) => ({ ...p, title: v }))} />
           <Inp type="date" value={ad.date} onChange={(v) => setAd((p) => ({ ...p, date: v }))} />
@@ -347,6 +409,21 @@ export default function App() {
             ))}
           </div>
         </div>
+        {/* 토요일 AI 추천 배너 */}
+        {isSaturday && (
+          <div
+            onClick={() => setTab("artist-date")}
+            style={{ background: `linear-gradient(135deg,${PM}22,${GM}22)`, border: `1.5px solid ${PM}66`, borderRadius: 12, padding: "14px 18px", marginBottom: 14, cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+          >
+            <div>
+              <p style={{ margin: 0, fontSize: 12, color: PD, fontWeight: 500 }}>🎨 오늘은 토요일!</p>
+              <p style={{ margin: "3px 0 0", fontSize: 15, fontWeight: 500, color: "#1a1a1a" }}>AI 아티스트 데이트 추천 받기</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: MUT }}>기분에 맞는 나만의 나들이를 찾아줘요</p>
+            </div>
+            <span style={{ fontSize: 22 }}>✨</span>
+          </div>
+        )}
+
         {/* CTA */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
           <button type="button"
