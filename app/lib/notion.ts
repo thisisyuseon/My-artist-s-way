@@ -1,21 +1,17 @@
 import { Client } from "@notionhq/client";
 import { MorningEntry } from "@/types";
 
-// 서버 사이드 전용 — API Route에서만 import
 export const notion = new Client({
   auth: process.env.NOTION_TOKEN,
 });
 
-const DB_MORNING  = process.env.NOTION_DB_MORNING!;
-const DB_ARTIST   = process.env.NOTION_DB_ARTIST!;
-const DB_CHECKIN  = process.env.NOTION_DB_CHECKIN!;
+const DB_MORNING = process.env.NOTION_DB_MORNING!;
+const DB_ARTIST  = process.env.NOTION_DB_ARTIST!;
+const DB_CHECKIN = process.env.NOTION_DB_CHECKIN!;
 
-// ── 헬퍼: rich_text 값 추출 ─────────────────────────────────────────
+// ── 헬퍼 ────────────────────────────────────────────────────────────
 function getText(prop: any): string {
   return prop?.rich_text?.map((r: any) => r.plain_text).join("") ?? "";
-}
-function getTitle(prop: any): string {
-  return prop?.title?.map((r: any) => r.plain_text).join("") ?? "";
 }
 function getDate(prop: any): string {
   return prop?.date?.start ?? "";
@@ -33,13 +29,16 @@ export async function queryMorningPages(): Promise<MorningEntry[]> {
   let cursor: string | undefined;
 
   do {
-    const res = await notion.databases.query!({
-      database_id: DB_MORNING,
-      sorts: [{ property: "날짜", direction: "descending" }],
-      start_cursor: cursor,
+    const res: any = await (notion as any).request({
+      path: "databases/" + DB_MORNING + "/query",
+      method: "POST",
+      body: {
+        sorts: [{ property: "날짜", direction: "descending" }],
+        ...(cursor ? { start_cursor: cursor } : {}),
+      },
     });
 
-    for (const page of res.results as any[]) {
+    for (const page of res.results ?? []) {
       const p = page.properties;
       results.push({
         date: getDate(p["날짜"]),
@@ -48,7 +47,7 @@ export async function queryMorningPages(): Promise<MorningEntry[]> {
       });
     }
 
-    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+    cursor = res.has_more ? res.next_cursor : undefined;
   } while (cursor);
 
   return results;
@@ -60,18 +59,18 @@ export async function queryCheckinWeeks(): Promise<number[]> {
   let cursor: string | undefined;
 
   do {
-    const res = await notion.databases.query!({
-      
-      database_id: DB_CHECKIN,
-      start_cursor: cursor,
+    const res: any = await (notion as any).request({
+      path: "databases/" + DB_CHECKIN + "/query",
+      method: "POST",
+      body: cursor ? { start_cursor: cursor } : {},
     });
 
-    for (const page of res.results as any[]) {
+    for (const page of res.results ?? []) {
       const w = getNumber(page.properties["주차"]);
       if (w) weeks.push(w);
     }
 
-    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
+    cursor = res.has_more ? res.next_cursor : undefined;
   } while (cursor);
 
   return weeks;
@@ -81,15 +80,19 @@ export async function queryCheckinWeeks(): Promise<number[]> {
 export async function createMorningPage(data: {
   date: string; text: string; mood: string; chars: number; title: string;
 }) {
-  return notion.pages.create({
-    parent: { database_id: DB_MORNING },
-    properties: {
-      "제목":  { title: [{ text: { content: data.title } }] },
-      "날짜":  { date: { start: data.date } },
-      "내용":  { rich_text: [{ text: { content: data.text.slice(0, 2000) } }] },
-      "기분":  { select: data.mood ? { name: data.mood } : null },
-      "글자수": { number: data.chars },
-      "완료":  { checkbox: true },
+  return (notion as any).request({
+    path: "pages",
+    method: "POST",
+    body: {
+      parent: { database_id: DB_MORNING },
+      properties: {
+        "제목":   { title: [{ text: { content: data.title } }] },
+        "날짜":   { date: { start: data.date } },
+        "내용":   { rich_text: [{ text: { content: data.text.slice(0, 2000) } }] },
+        "기분":   data.mood ? { select: { name: data.mood } } : undefined,
+        "글자수": { number: data.chars },
+        "완료":   { checkbox: true },
+      },
     },
   });
 }
@@ -99,16 +102,20 @@ export async function createArtistDate(data: {
   title: string; date: string; place: string; category: string;
   alone: boolean; feeling: string; keywords: string;
 }) {
-  return notion.pages.create({
-    parent: { database_id: DB_ARTIST },
-    properties: {
-      "제목":       { title: [{ text: { content: data.title } }] },
-      "날짜":       { date: { start: data.date } },
-      "장소":       { rich_text: [{ text: { content: data.place } }] },
-      "카테고리":   { select: data.category ? { name: data.category } : null },
-      "혼자였나요": { checkbox: data.alone },
-      "느낀점":     { rich_text: [{ text: { content: data.feeling } }] },
-      "영감 키워드":{ rich_text: [{ text: { content: data.keywords } }] },
+  return (notion as any).request({
+    path: "pages",
+    method: "POST",
+    body: {
+      parent: { database_id: DB_ARTIST },
+      properties: {
+        "제목":        { title: [{ text: { content: data.title } }] },
+        "날짜":        { date: { start: data.date } },
+        "장소":        { rich_text: [{ text: { content: data.place } }] },
+        "카테고리":    data.category ? { select: { name: data.category } } : undefined,
+        "혼자였나요":  { checkbox: data.alone },
+        "느낀점":      { rich_text: [{ text: { content: data.feeling } }] },
+        "영감 키워드": { rich_text: [{ text: { content: data.keywords } }] },
+      },
     },
   });
 }
@@ -119,19 +126,23 @@ export async function createCheckin(data: {
   mpDays: number; adDone: boolean; readingFast: boolean;
   feeling: string; qaText: string; discovery: string; nextWeek: string;
 }) {
-  return notion.pages.create({
-    parent: { database_id: DB_CHECKIN },
-    properties: {
-      "제목":               { title: [{ text: { content: `Week ${data.week} — ${data.theme}` } }] },
-      "주차":               { number: data.week },
-      "완료일":             { date: { start: data.date } },
-      "모닝페이지 일수":    { number: data.mpDays },
-      "아티스트 데이트 했나요": { checkbox: data.adDone },
-      "읽기 금지 했나요":   { checkbox: data.readingFast },
-      "이번 주 전반적인 느낌": { select: data.feeling ? { name: data.feeling } : null },
-      "장 요약 & 나의 인사이트": { rich_text: [{ text: { content: data.qaText.slice(0, 2000) } }] },
-      "이번 주 가장 큰 발견":   { rich_text: [{ text: { content: data.discovery } }] },
-      "다음 주에 가져갈 것":    { rich_text: [{ text: { content: data.nextWeek } }] },
+  return (notion as any).request({
+    path: "pages",
+    method: "POST",
+    body: {
+      parent: { database_id: DB_CHECKIN },
+      properties: {
+        "제목":                    { title: [{ text: { content: `Week ${data.week} — ${data.theme}` } }] },
+        "주차":                    { number: data.week },
+        "완료일":                  { date: { start: data.date } },
+        "모닝페이지 일수":         { number: data.mpDays },
+        "아티스트 데이트 했나요":  { checkbox: data.adDone },
+        "읽기 금지 했나요":        { checkbox: data.readingFast },
+        "이번 주 전반적인 느낌":   data.feeling ? { select: { name: data.feeling } } : undefined,
+        "장 요약 & 나의 인사이트": { rich_text: [{ text: { content: data.qaText.slice(0, 2000) } }] },
+        "이번 주 가장 큰 발견":    { rich_text: [{ text: { content: data.discovery } }] },
+        "다음 주에 가져갈 것":     { rich_text: [{ text: { content: data.nextWeek } }] },
+      },
     },
   });
 }
