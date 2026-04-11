@@ -33,7 +33,7 @@ export async function queryMorningPages(): Promise<MorningEntry[]> {
   let cursor: string | undefined;
 
   do {
-    const res = await notion.databases.query({
+    const res = await notion.databases.query!({
       database_id: DB_MORNING,
       sorts: [{ property: "날짜", direction: "descending" }],
       start_cursor: cursor,
@@ -60,7 +60,8 @@ export async function queryCheckinWeeks(): Promise<number[]> {
   let cursor: string | undefined;
 
   do {
-    const res = await notion.databases.query({
+    const res = await notion.databases.query!({
+      
       database_id: DB_CHECKIN,
       start_cursor: cursor,
     });

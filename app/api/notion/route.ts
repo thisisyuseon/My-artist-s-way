@@ -5,8 +5,8 @@ import {
   createMorningPage,
   createArtistDate,
   createCheckin,
-} from "@/lib/notion";
-import { fmtDate } from "@/lib/utils";
+} from "../../lib/notion";
+import { fmtDate } from "@/app/lib/utils";
 
 export async function POST(req: NextRequest) {
   try {

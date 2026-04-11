@@ -2,10 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MorningEntry, ArtistDate, CheckinForm, Stats } from "@/types";
-import { calcStats, todayStr, fmtDate, rand } from "@/lib/utils";
-import { PROMPTS, WEEKS } from "@/lib/constants";
+import { calcStats, todayStr, fmtDate, rand } from "@/app/lib/utils";
+import { PROMPTS, WEEKS } from "@/app/lib/constants";
 import { PM, PD, PB, GM, GD, GB, BG, MUT, Tag, Inp, FieldLbl, Card, BackBtn, SaveBtn } from "@/components/ui";
-import { MOODS, WEEK_FEELINGS, ARTIST_CATS, TARGET_CHARS } from "@/lib/constants";
+import { MOODS, WEEK_FEELINGS, ARTIST_CATS, TARGET_CHARS } from "@/app/lib/constants";
 
 type Tab = "home" | "write" | "artist-date" | "checkin";
 
