@@ -118,7 +118,7 @@ export default function App() {
       setMpContentMap((p) => ({ ...p, [today]: { text: mpText, mood: mpMood } }));
       setMpMsg("✓ 노션에 저장됐어요!");
     } else {
-      setMpMsg("저장 실패, 다시 시도해주세요.");
+      setMpMsg(`저장 실패: ${res.error}`);
     }
     setMpSaving(false);
   }
