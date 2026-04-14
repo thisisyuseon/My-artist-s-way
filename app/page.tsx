@@ -76,11 +76,13 @@ export default function App() {
         const ciSet = new Set<number>((ciRes.weeks ?? []).map(Number));
         setCiDoneWeeks(ciSet);
 
-        // 캘린더 기반: 가장 오래된 모닝페이지 날짜 = 프로그램 시작일
-        // API는 내림차순 정렬로 오므로, 오름차순 정렬 후 첫 번째 = 최초 날짜
+        // 캘린더 기반: 환경변수 → 첫 모닝페이지 날짜 순서로 프로그램 시작일 결정
         const sortedDates = [...dates].sort();
-        const calendarWeek = sortedDates.length > 0
-          ? calcWeekFromStartDate(sortedDates[0])
+        const programStartDate =
+          process.env.NEXT_PUBLIC_PROGRAM_START_DATE ||
+          (sortedDates.length > 0 ? sortedDates[0] : null);
+        const calendarWeek = programStartDate
+          ? calcWeekFromStartDate(programStartDate)
           : 1;
 
         // 체크인 기반: 마지막 완료 주차 + 1
