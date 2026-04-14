@@ -9,9 +9,10 @@ import {
 import { fmtDate } from "@/app/lib/utils";
 
 export async function POST(req: NextRequest) {
+  let action = "(unknown)";
   try {
     const body = await req.json();
-    const { action } = body;
+    action = body.action ?? action;
 
     // ── 모닝페이지 전체 로드 ─────────────────────────────────────────
     if (action === "query_morning") {
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
 
   } catch (err: any) {
-    console.error("[notion/route]", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error(`[notion/route] action=${action}`, err?.message, err?.code, err?.status);
+    return NextResponse.json({ error: err?.message ?? String(err) }, { status: 500 });
   }
 }

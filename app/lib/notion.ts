@@ -80,20 +80,20 @@ export async function queryCheckinWeeks(): Promise<number[]> {
 export async function createMorningPage(data: {
   date: string; text: string; mood: string; chars: number; title: string;
 }) {
+  const properties: Record<string, unknown> = {
+    "제목":   { title: [{ text: { content: data.title } }] },
+    "날짜":   { date: { start: data.date } },
+    "내용":   { rich_text: [{ text: { content: data.text.slice(0, 2000) } }] },
+    "글자수": { number: data.chars },
+    "완료":   { checkbox: true },
+  };
+  if (data.mood) {
+    properties["기분"] = { select: { name: data.mood } };
+  }
   return (notion as any).request({
     path: "pages",
     method: "POST",
-    body: {
-      parent: { database_id: DB_MORNING },
-      properties: {
-        "제목":   { title: [{ text: { content: data.title } }] },
-        "날짜":   { date: { start: data.date } },
-        "내용":   { rich_text: [{ text: { content: data.text.slice(0, 2000) } }] },
-        "기분":   data.mood ? { select: { name: data.mood } } : undefined,
-        "글자수": { number: data.chars },
-        "완료":   { checkbox: true },
-      },
-    },
+    body: { parent: { database_id: DB_MORNING }, properties },
   });
 }
 
