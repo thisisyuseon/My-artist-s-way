@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MorningEntry, ArtistDate, CheckinForm, Stats } from "@/types";
-import { calcStats, todayStr, fmtDate, rand } from "@/app/lib/utils";
+import { calcStats, calcWeekFromStartDate, todayStr, fmtDate, rand } from "@/app/lib/utils";
 import { PROMPTS, WEEKS } from "@/app/lib/constants";
 import { PM, PD, PB, GM, GD, GB, BG, MUT, Tag, Inp, FieldLbl, Card, BackBtn, SaveBtn } from "@/components/ui";
 import { MOODS, WEEK_FEELINGS, ARTIST_CATS, TARGET_CHARS } from "@/app/lib/constants";
@@ -76,11 +76,22 @@ export default function App() {
         const ciSet = new Set<number>((ciRes.weeks ?? []).map(Number));
         setCiDoneWeeks(ciSet);
 
-        if (ciSet.size > 0) {
-          const next = Math.min(Math.max(...ciSet) + 1, 12);
-          setCurrentWeek(next);
-          setCiWeek(next);
-        }
+        // 캘린더 기반: 가장 오래된 모닝페이지 날짜 = 프로그램 시작일
+        // API는 내림차순 정렬로 오므로, 오름차순 정렬 후 첫 번째 = 최초 날짜
+        const sortedDates = [...dates].sort();
+        const calendarWeek = sortedDates.length > 0
+          ? calcWeekFromStartDate(sortedDates[0])
+          : 1;
+
+        // 체크인 기반: 마지막 완료 주차 + 1
+        const checkinWeek = ciSet.size > 0
+          ? Math.min(Math.max(...ciSet) + 1, 12)
+          : 1;
+
+        // 둘 중 더 큰 값 사용 (이미 완료한 주차보다 뒤로 가지 않도록)
+        const resolvedWeek = Math.max(calendarWeek, checkinWeek);
+        setCurrentWeek(resolvedWeek);
+        setCiWeek(resolvedWeek);
       } catch {
         setLoadErr(true);
       } finally {
