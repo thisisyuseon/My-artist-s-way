@@ -11,6 +11,16 @@ export const fmtDate = (k: string): string => {
 export const rand = <T>(arr: T[]): T =>
   arr[Math.floor(Math.random() * arr.length)];
 
+export function calcWeekFromStartDate(startDateStr: string): number {
+  const start = new Date(startDateStr + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const daysSinceStart = Math.floor(
+    (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  return Math.min(Math.floor(daysSinceStart / 7) + 1, 12);
+}
+
 export function calcStats(dates: string[]): Stats {
   const set = new Set(dates);
   const today = todayStr();
